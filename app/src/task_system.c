@@ -49,8 +49,6 @@
 #include "app.h"
 #include "task_system_attribute.h"
 #include "task_system_interface.h"
-#include "task_actuator_attribute.h"
-#include "task_actuator_interface.h"
 
 /********************** macros and definitions *******************************/
 #define G_TASK_SYS_CNT_INI			0ul
@@ -75,6 +73,17 @@ task_system_dta_t task_system_dta = {
 
 /********************** internal functions declaration ***********************/
 
+void pantalla_main(task_system_dta_t* p_task_system_dta);
+
+void pantalla_menu_motores(task_system_dta_t* p_task_system_dta);
+
+void pantalla_menu_propiedades(task_system_dta_t* p_task_system_dta);
+
+void pantalla_menu_valores_power(task_system_dta_t* p_task_system_dta);
+void pantalla_menu_valores_speed(task_system_dta_t* p_task_system_dta);
+void pantalla_menu_valores_spin(task_system_dta_t* p_task_system_dta);
+
+
 /********************** internal data definition *****************************/
 const char *p_task_system 		= "Task System (System Statechart)";
 const char *p_task_system_ 		= "Non-Blocking & Update By Time Code";
@@ -89,7 +98,6 @@ void task_system_init(void *parameters)
 	task_system_dta_t 	*p_task_system_dta;
 	task_system_st_t	state;
 	task_system_ev_t	event;
-	bool b_event;
 
 	/* Print out: Task Initialized */
 	LOGGER_LOG("  %s is running - %s\r\n", GET_NAME(task_system_init), p_task_system);
@@ -110,11 +118,14 @@ void task_system_init(void *parameters)
 	LOGGER_LOG("   %s = %lu", GET_NAME(state), (uint32_t)state);
 
 	event = p_task_system_dta->event;
-	LOGGER_LOG("   %s = %lu", GET_NAME(event), (uint32_t)event);
+	LOGGER_LOG("   %s = %lu\n", GET_NAME(event), (uint32_t)event);
 
 
 	g_task_system_tick_cnt = G_TASK_SYS_TICK_CNT_INI;
+
+	pantalla_main(p_task_system_dta);
 }
+
 
 void task_system_update(void *parameters)
 {
@@ -150,11 +161,9 @@ void task_system_update(void *parameters)
 
     	/* Update Task System Data Pointer */
 		p_task_system_dta = &task_system_dta;
-
 		if (!any_event_task_system()){
 			continue;
 		}
-
 		p_task_system_dta->event = get_event_task_system();
 
 		switch (p_task_system_dta->state) {
@@ -162,28 +171,36 @@ void task_system_update(void *parameters)
 				if (p_task_system_dta->event == EV_SYS_XX_MENU) {
 					p_task_system_dta->state = ST_SYS_XX_MENU_MOTORES;
 					p_task_system_dta->indice_motores = 0;
+					pantalla_menu_motores(p_task_system_dta);
 
 				}
 				break;
+
 			case ST_SYS_XX_MENU_MOTORES:
 				if (p_task_system_dta->event == EV_SYS_XX_ESCAPE) {
 					p_task_system_dta->state = ST_SYS_XX_MAIN;
+					pantalla_main(p_task_system_dta);
 
 				} else if (p_task_system_dta->event == EV_SYS_XX_NEXT) {
 					p_task_system_dta->indice_motores = (p_task_system_dta->indice_motores + 1) % MAX_MOTORES;
+					pantalla_menu_motores(p_task_system_dta);
 
 				} else if (p_task_system_dta->event == EV_SYS_XX_ENTER) {
 					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
 					p_task_system_dta->indice_propiedades = 0;
+					pantalla_menu_propiedades(p_task_system_dta);
+
 				}
 
 				break;
 			case ST_SYS_XX_MENU_PROPIEDADES:
 				if (p_task_system_dta->event == EV_SYS_XX_ESCAPE) {
 					p_task_system_dta->state = ST_SYS_XX_MENU_MOTORES;
+					pantalla_menu_motores(p_task_system_dta);
 
 				} else if (p_task_system_dta->event == EV_SYS_XX_NEXT) {
 					p_task_system_dta->indice_propiedades = (p_task_system_dta->indice_propiedades + 1) % MAX_PROPIEDADES;
+					pantalla_menu_propiedades(p_task_system_dta);
 
 				} else if (p_task_system_dta->event == EV_SYS_XX_ENTER) {
 					motor_t* motor = p_task_system_dta->motores + p_task_system_dta->indice_motores;
@@ -192,16 +209,19 @@ void task_system_update(void *parameters)
 						case POWER:
 							p_task_system_dta->state = ST_SYS_XX_MENU_VALORES_POWER;
 							p_task_system_dta->indice_valores = (uint32_t)motor->power;
+							pantalla_menu_valores_power(p_task_system_dta);
 							break;
 
 						case SPEED:
 							p_task_system_dta->state = ST_SYS_XX_MENU_VALORES_SPEED;
 							p_task_system_dta->indice_valores = (uint32_t)motor->speed;
+							pantalla_menu_valores_speed(p_task_system_dta);
 							break;
 
 						case SPIN:
 							p_task_system_dta->state = ST_SYS_XX_MENU_VALORES_SPIN;
 							p_task_system_dta->indice_valores = (uint32_t)motor->spin;
+							pantalla_menu_valores_spin(p_task_system_dta);
 							break;
 
 						default: // ASSERT("Indice propiedades no deberia tener un valor mayor a %i\n", MAX_PROPIEDADES);
@@ -212,42 +232,51 @@ void task_system_update(void *parameters)
 			case ST_SYS_XX_MENU_VALORES_POWER:
 				if (p_task_system_dta->event == EV_SYS_XX_ESCAPE) {
 					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
+					pantalla_menu_propiedades(p_task_system_dta);
 
 				} else if(p_task_system_dta->event == EV_SYS_XX_NEXT) {
 					p_task_system_dta->indice_valores = (p_task_system_dta->indice_valores + 1) % MAX_POWER;
+					pantalla_menu_valores_power(p_task_system_dta);
 
 				} else if (p_task_system_dta->event == EV_SYS_XX_ENTER) {
 					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
 					motor_t* motor = p_task_system_dta->motores + p_task_system_dta->indice_motores;
 					motor->power = (task_power_t)p_task_system_dta->indice_valores;
+					pantalla_menu_propiedades(p_task_system_dta);
 				}
 
 				break;
 			case ST_SYS_XX_MENU_VALORES_SPEED:
 				if (p_task_system_dta->event == EV_SYS_XX_ESCAPE) {
 					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
+					pantalla_menu_propiedades(p_task_system_dta);
 
 				} else if(p_task_system_dta->event == EV_SYS_XX_NEXT) {
 					p_task_system_dta->indice_valores = (p_task_system_dta->indice_valores + 1) % MAX_SPEED;
+					pantalla_menu_valores_speed(p_task_system_dta);
 
 				} else if (p_task_system_dta->event == EV_SYS_XX_ENTER) {
 					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
 					motor_t* motor = p_task_system_dta->motores + p_task_system_dta->indice_motores;
 					motor->speed = (task_speed_t)p_task_system_dta->indice_valores;
+					pantalla_menu_propiedades(p_task_system_dta);
 				}
 
 				break;
 			case ST_SYS_XX_MENU_VALORES_SPIN:
 				if (p_task_system_dta->event == EV_SYS_XX_ESCAPE) {
 					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
+					pantalla_menu_propiedades(p_task_system_dta);
 
 				} else if(p_task_system_dta->event == EV_SYS_XX_NEXT) {
 					p_task_system_dta->indice_valores = (p_task_system_dta->indice_valores + 1) % MAX_SPIN;
+					pantalla_menu_valores_spin(p_task_system_dta);
 
 				} else if (p_task_system_dta->event == EV_SYS_XX_ENTER) {
 					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
 					motor_t* motor = p_task_system_dta->motores + p_task_system_dta->indice_motores;
 					motor->spin = (task_spin_t)p_task_system_dta->indice_valores;
+					pantalla_menu_propiedades(p_task_system_dta);
 				}
 
 				break;
@@ -258,26 +287,57 @@ void task_system_update(void *parameters)
 	}
 }
 
+void pantalla_main(task_system_dta_t* p_task_system_dta) {
+	for (int i = 0; i < 2; i++) {
+		motor_t motor = p_task_system_dta->motores[i];
 
+		char* power = (motor.power == POWER_OFF) ? "OFF" : "ON";
+		int speed = (int)(motor.speed);
+		char* spin = (motor.spin == SPIN_LEFT) ? "L" : "R";
 
+		LOGGER_LOG("Motor %i: %s, %i, %s\n", i + 1, power, speed, spin);
+	}
+}
 
+void pantalla_menu_motores(task_system_dta_t* p_task_system_dta) {
+	LOGGER_LOG("Enter / Next / Escape\n");
+	LOGGER_LOG(" > Motor %i\n", (int)p_task_system_dta->indice_motores + 1);
+}
 
+void pantalla_menu_propiedades(task_system_dta_t* p_task_system_dta) {
+	LOGGER_LOG("Enter / Next / Escape\n");
+	char* nombre;
+	switch (p_task_system_dta->indice_propiedades) {
+		case POWER: nombre = "Power"; break;
+		case SPEED: nombre = "Speed"; break;
+		case SPIN: nombre = "Spin"; break;
+	}
+	LOGGER_LOG(" > %s\n", nombre);
+}
 
+void pantalla_menu_valores_power(task_system_dta_t* p_task_system_dta) {
+	LOGGER_LOG("Enter / Next / Escape\n");
+	char* nombre;
+	switch (p_task_system_dta->indice_valores) {
+		case POWER_ON: nombre = "ON"; break;
+		case POWER_OFF: nombre = "OFF"; break;
+	}
+	LOGGER_LOG(" > %s\n", nombre);
+}
 
+void pantalla_menu_valores_speed(task_system_dta_t* p_task_system_dta) {
+	LOGGER_LOG("Enter / Next / Escape\n");
+	LOGGER_LOG(" > %i\n", (int)p_task_system_dta->indice_valores);
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+void pantalla_menu_valores_spin(task_system_dta_t* p_task_system_dta) {
+	LOGGER_LOG("Enter / Next / Escape\n");
+	char* nombre;
+	switch (p_task_system_dta->indice_valores) {
+		case SPIN_LEFT: nombre = "LEFT"; break;
+		case SPIN_RIGHT: nombre = "RIGHT"; break;
+	}
+	LOGGER_LOG(" > %s\n", nombre);
+}
 
 /********************** end of file ******************************************/

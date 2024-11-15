@@ -46,7 +46,6 @@
 /* Application & Tasks includes. */
 #include "board.h"
 #include "task_system.h"
-#include "task_actuator.h"
 #include "task_sensor.h"
 
 /********************** macros and definitions *******************************/
@@ -72,7 +71,6 @@ typedef struct {
 const task_cfg_t task_cfg_list[]	= {
 		{task_sensor_init, 		task_sensor_update, 	NULL},
 		{task_system_init, 		task_system_update, 	NULL},
-		{task_actuator_init,	task_actuator_update, 	NULL}
 };
 
 #define TASK_QTY	(sizeof(task_cfg_list)/sizeof(task_cfg_t))
@@ -166,7 +164,6 @@ void HAL_SYSTICK_Callback(void)
 
 	g_task_sensor_tick_cnt++;
 	g_task_system_tick_cnt++;
-	g_task_actuator_tick_cnt++;
 
 	//HAL_GPIO_TogglePin(LED_A_PORT, LED_A_PIN);
 }
