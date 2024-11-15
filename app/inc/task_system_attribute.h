@@ -72,15 +72,74 @@ typedef enum task_system_ev {
 
 /* State of Task System */
 typedef enum task_system_st {
-	ST_SYS_XX_IDLE,
-	ST_SYS_XX_ACTIVE
+	ST_SYS_XX_MAIN,
+	ST_SYS_XX_MENU_MOTORES,
+	ST_SYS_XX_MENU_PROPIEDADES,
+	ST_SYS_XX_MENU_VALORES_POWER,
+	ST_SYS_XX_MENU_VALORES_SPEED,
+	ST_SYS_XX_MENU_VALORES_SPIN,
 } task_system_st_t;
 
-typedef struct
-{
-	uint32_t			tick;
+typedef enum task_motores {
+	MOTOR_1,
+	MOTOR_2,
+	MOTOR_3,
+	MOTOR_4,
+
+	MAX_MOTORES,
+} task_motores_t;
+
+typedef enum task_propiedades {
+	POWER,
+	SPEED,
+	SPIN,
+
+	MAX_PROPIEDADES,
+} task_propiedades_t;
+
+typedef enum task_power {
+	POWER_OFF,
+	POWER_ON,
+
+	MAX_POWER,
+} task_power_t;
+
+typedef enum task_speed {
+	SPEED_0,
+	SPEED_1,
+	SPEED_2,
+	SPEED_3,
+	SPEED_4,
+	SPEED_5,
+	SPEED_6,
+	SPEED_7,
+	SPEED_8,
+	SPEED_9,
+
+	MAX_SPEED,
+} task_speed_t;
+
+typedef enum task_spin {
+	SPIN_LEFT,
+	SPIN_RIGHT,
+
+	MAX_SPIN,
+} task_spin_t;
+
+typedef struct motor {
+	task_motores_t		motor_id;
+	task_power_t		power;
+	task_speed_t		speed;
+	task_spin_t			spin;
+} motor_t;
+
+typedef struct {
 	task_system_st_t	state;
 	task_system_ev_t	event;
+	motor_t				motores[MAX_MOTORES];
+	uint32_t			indice_motores;
+	uint32_t			indice_propiedades;
+	uint32_t			indice_valores;
 } task_system_dta_t;
 
 /********************** external data declaration ****************************/

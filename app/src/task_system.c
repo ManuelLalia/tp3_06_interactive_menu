@@ -61,8 +61,15 @@
 #define DEL_SYS_XX_MAX				500ul
 
 /********************** internal data declaration ****************************/
-task_system_dta_t task_system_dta =
-	{DEL_SYS_XX_MIN, ST_SYS_XX_IDLE, EV_SYS_XX_IDLE, false};
+task_system_dta_t task_system_dta = {
+	ST_SYS_XX_MAIN, EV_SYS_XX_IDLE,
+	{
+		{ MOTOR_1, POWER_OFF, SPEED_0, SPIN_LEFT },
+		{ MOTOR_2, POWER_OFF, SPEED_0, SPIN_LEFT },
+		{ MOTOR_3, POWER_OFF, SPEED_0, SPIN_LEFT },
+		{ MOTOR_4, POWER_OFF, SPEED_0, SPIN_LEFT },
+	}, 0, 0, 0,
+};
 
 #define SYSTEM_DTA_QTY	(sizeof(task_system_dta)/sizeof(task_system_dta_t))
 
@@ -105,8 +112,6 @@ void task_system_init(void *parameters)
 	event = p_task_system_dta->event;
 	LOGGER_LOG("   %s = %lu", GET_NAME(event), (uint32_t)event);
 
-	b_event = p_task_system_dta->flag;
-	LOGGER_LOG("   %s = %s\r\n", GET_NAME(b_event), (b_event ? "true" : "false"));
 
 	g_task_system_tick_cnt = G_TASK_SYS_TICK_CNT_INI;
 }
@@ -146,41 +151,133 @@ void task_system_update(void *parameters)
     	/* Update Task System Data Pointer */
 		p_task_system_dta = &task_system_dta;
 
-		if (true == any_event_task_system())
-		{
-			p_task_system_dta->flag = true;
-			p_task_system_dta->event = get_event_task_system();
+		if (!any_event_task_system()){
+			continue;
 		}
 
-		switch (p_task_system_dta->state)
-		{
-			case ST_SYS_XX_IDLE:
+		p_task_system_dta->event = get_event_task_system();
 
-				if ((true == p_task_system_dta->flag) && (EV_SYS_XX_ACTIVE == p_task_system_dta->event))
-				{
-					p_task_system_dta->flag = false;
-					put_event_task_actuator(EV_LED_XX_ON, ID_LED_A);
-					p_task_system_dta->state = ST_SYS_XX_ACTIVE;
+		switch (p_task_system_dta->state) {
+			case ST_SYS_XX_MAIN:
+				if (p_task_system_dta->event == EV_SYS_XX_MENU) {
+					p_task_system_dta->state = ST_SYS_XX_MENU_MOTORES;
+					p_task_system_dta->indice_motores = 0;
+
+				}
+				break;
+			case ST_SYS_XX_MENU_MOTORES:
+				if (p_task_system_dta->event == EV_SYS_XX_ESCAPE) {
+					p_task_system_dta->state = ST_SYS_XX_MAIN;
+
+				} else if (p_task_system_dta->event == EV_SYS_XX_NEXT) {
+					p_task_system_dta->indice_motores = (p_task_system_dta->indice_motores + 1) % MAX_MOTORES;
+
+				} else if (p_task_system_dta->event == EV_SYS_XX_ENTER) {
+					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
+					p_task_system_dta->indice_propiedades = 0;
 				}
 
 				break;
+			case ST_SYS_XX_MENU_PROPIEDADES:
+				if (p_task_system_dta->event == EV_SYS_XX_ESCAPE) {
+					p_task_system_dta->state = ST_SYS_XX_MENU_MOTORES;
 
-			case ST_SYS_XX_ACTIVE:
+				} else if (p_task_system_dta->event == EV_SYS_XX_NEXT) {
+					p_task_system_dta->indice_propiedades = (p_task_system_dta->indice_propiedades + 1) % MAX_PROPIEDADES;
 
-				if ((true == p_task_system_dta->flag) && (EV_SYS_XX_IDLE == p_task_system_dta->event))
-				{
-					p_task_system_dta->flag = false;
-					put_event_task_actuator(EV_LED_XX_OFF, ID_LED_A);
-					p_task_system_dta->state = ST_SYS_XX_IDLE;
+				} else if (p_task_system_dta->event == EV_SYS_XX_ENTER) {
+					motor_t* motor = p_task_system_dta->motores + p_task_system_dta->indice_motores;
+
+					switch (p_task_system_dta->indice_propiedades) {
+						case POWER:
+							p_task_system_dta->state = ST_SYS_XX_MENU_VALORES_POWER;
+							p_task_system_dta->indice_valores = (uint32_t)motor->power;
+							break;
+
+						case SPEED:
+							p_task_system_dta->state = ST_SYS_XX_MENU_VALORES_SPEED;
+							p_task_system_dta->indice_valores = (uint32_t)motor->speed;
+							break;
+
+						case SPIN:
+							p_task_system_dta->state = ST_SYS_XX_MENU_VALORES_SPIN;
+							p_task_system_dta->indice_valores = (uint32_t)motor->spin;
+							break;
+
+						default: // ASSERT("Indice propiedades no deberia tener un valor mayor a %i\n", MAX_PROPIEDADES);
+					}
 				}
 
 				break;
+			case ST_SYS_XX_MENU_VALORES_POWER:
+				if (p_task_system_dta->event == EV_SYS_XX_ESCAPE) {
+					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
 
+				} else if(p_task_system_dta->event == EV_SYS_XX_NEXT) {
+					p_task_system_dta->indice_valores = (p_task_system_dta->indice_valores + 1) % MAX_POWER;
+
+				} else if (p_task_system_dta->event == EV_SYS_XX_ENTER) {
+					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
+					motor_t* motor = p_task_system_dta->motores + p_task_system_dta->indice_motores;
+					motor->power = (task_power_t)p_task_system_dta->indice_valores;
+				}
+
+				break;
+			case ST_SYS_XX_MENU_VALORES_SPEED:
+				if (p_task_system_dta->event == EV_SYS_XX_ESCAPE) {
+					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
+
+				} else if(p_task_system_dta->event == EV_SYS_XX_NEXT) {
+					p_task_system_dta->indice_valores = (p_task_system_dta->indice_valores + 1) % MAX_SPEED;
+
+				} else if (p_task_system_dta->event == EV_SYS_XX_ENTER) {
+					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
+					motor_t* motor = p_task_system_dta->motores + p_task_system_dta->indice_motores;
+					motor->speed = (task_speed_t)p_task_system_dta->indice_valores;
+				}
+
+				break;
+			case ST_SYS_XX_MENU_VALORES_SPIN:
+				if (p_task_system_dta->event == EV_SYS_XX_ESCAPE) {
+					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
+
+				} else if(p_task_system_dta->event == EV_SYS_XX_NEXT) {
+					p_task_system_dta->indice_valores = (p_task_system_dta->indice_valores + 1) % MAX_SPIN;
+
+				} else if (p_task_system_dta->event == EV_SYS_XX_ENTER) {
+					p_task_system_dta->state = ST_SYS_XX_MENU_PROPIEDADES;
+					motor_t* motor = p_task_system_dta->motores + p_task_system_dta->indice_motores;
+					motor->spin = (task_spin_t)p_task_system_dta->indice_valores;
+				}
+
+				break;
 			default:
 
 				break;
 		}
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /********************** end of file ******************************************/
