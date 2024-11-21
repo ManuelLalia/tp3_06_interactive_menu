@@ -49,6 +49,7 @@
 #include "app.h"
 #include "task_system_attribute.h"
 #include "task_system_interface.h"
+#include "display.h"
 
 /********************** macros and definitions *******************************/
 #define G_TASK_SYS_CNT_INI			0ul
@@ -58,20 +59,21 @@
 #define DEL_SYS_XX_MED				50ul
 #define DEL_SYS_XX_MAX				500ul
 
+#define MAX_LINEA_DISPLAY			20
+
 /********************** internal data declaration ****************************/
 task_system_dta_t task_system_dta = {
 	ST_SYS_XX_MAIN, EV_SYS_XX_IDLE,
 	{
 		{ MOTOR_1, POWER_OFF, SPEED_0, SPIN_LEFT },
 		{ MOTOR_2, POWER_OFF, SPEED_0, SPIN_LEFT },
-		{ MOTOR_3, POWER_OFF, SPEED_0, SPIN_LEFT },
-		{ MOTOR_4, POWER_OFF, SPEED_0, SPIN_LEFT },
 	}, 0, 0, 0,
 };
 
 #define SYSTEM_DTA_QTY	(sizeof(task_system_dta)/sizeof(task_system_dta_t))
 
 /********************** internal functions declaration ***********************/
+void decoracion();
 
 void pantalla_main(task_system_dta_t* p_task_system_dta);
 
@@ -123,6 +125,9 @@ void task_system_init(void *parameters)
 
 	g_task_system_tick_cnt = G_TASK_SYS_TICK_CNT_INI;
 
+    displayInit( DISPLAY_CONNECTION_GPIO_4BITS );
+
+    decoracion();
 	pantalla_main(p_task_system_dta);
 }
 
@@ -287,7 +292,25 @@ void task_system_update(void *parameters)
 	}
 }
 
+void decoracion() {
+	for (int i = 0; i < 2; i++) {
+		displayCharPositionWrite(0, 3 * i);
+		displayStringWrite("--------------------");
+	}
+}
+
+void limpiar_linea(uint32_t inicio, uint32_t linea) {
+	char test_str[20];
+	displayCharPositionWrite(inicio, linea);
+
+	for (uint32_t posicion = inicio, i = 0; posicion < MAX_LINEA_DISPLAY; posicion++, i++)
+		test_str[i] = ' ';
+	test_str[MAX_LINEA_DISPLAY - inicio] = '\0';
+	displayStringWrite(test_str);
+}
+
 void pantalla_main(task_system_dta_t* p_task_system_dta) {
+	char test_str[20];
 	for (int i = 0; i < 2; i++) {
 		motor_t motor = p_task_system_dta->motores[i];
 
@@ -295,49 +318,73 @@ void pantalla_main(task_system_dta_t* p_task_system_dta) {
 		int speed = (int)(motor.speed);
 		char* spin = (motor.spin == SPIN_LEFT) ? "L" : "R";
 
-		LOGGER_LOG("Motor %i: %s, %i, %s\n", i + 1, power, speed, spin);
+		snprintf(test_str, sizeof(test_str), "Motor %i: %s, %i, %s", i + 1, power, speed, spin);
+		displayCharPositionWrite(0, i + 1);
+		displayStringWrite(test_str);
 	}
 }
 
 void pantalla_menu_motores(task_system_dta_t* p_task_system_dta) {
-	LOGGER_LOG("Enter / Next / Escape\n");
-	LOGGER_LOG(" > Motor %i\n", (int)p_task_system_dta->indice_motores + 1);
+	char test_str[20];
+
+	displayCharPositionWrite(0, 1);
+	displayStringWrite("Enter/Next/Escape   ");
+
+	limpiar_linea(0, 2);
+
+	snprintf(test_str, sizeof(test_str), " > Motor %i", (int)p_task_system_dta->indice_motores + 1);
+	displayCharPositionWrite(0, 2);
+	displayStringWrite(test_str);
 }
 
 void pantalla_menu_propiedades(task_system_dta_t* p_task_system_dta) {
-	LOGGER_LOG("Enter / Next / Escape\n");
-	char* nombre;
+	char test_str[17];
 	switch (p_task_system_dta->indice_propiedades) {
-		case POWER: nombre = "Power"; break;
-		case SPEED: nombre = "Speed"; break;
-		case SPIN: nombre = "Spin"; break;
+		case POWER: snprintf(test_str, sizeof(test_str), "%s", "Power"); break;
+		case SPEED: snprintf(test_str, sizeof(test_str), "%s", "Speed"); break;
+		case SPIN: snprintf(test_str, sizeof(test_str), "%s", "Spin"); break;
 	}
-	LOGGER_LOG(" > %s\n", nombre);
+
+	limpiar_linea(3, 2);
+
+	displayCharPositionWrite(3, 2);
+	displayStringWrite(test_str);
 }
 
 void pantalla_menu_valores_power(task_system_dta_t* p_task_system_dta) {
-	LOGGER_LOG("Enter / Next / Escape\n");
-	char* nombre;
+	char test_str[17];
 	switch (p_task_system_dta->indice_valores) {
-		case POWER_ON: nombre = "ON"; break;
-		case POWER_OFF: nombre = "OFF"; break;
+		case POWER_ON: snprintf(test_str, sizeof(test_str), "%s", "ON"); break;
+		case POWER_OFF: snprintf(test_str, sizeof(test_str), "%s", "OFF"); break;
 	}
-	LOGGER_LOG(" > %s\n", nombre);
+
+	limpiar_linea(3, 2);
+
+	displayCharPositionWrite(3, 2);
+	displayStringWrite(test_str);
 }
 
 void pantalla_menu_valores_speed(task_system_dta_t* p_task_system_dta) {
-	LOGGER_LOG("Enter / Next / Escape\n");
-	LOGGER_LOG(" > %i\n", (int)p_task_system_dta->indice_valores);
+	char test_str[17];
+	snprintf(test_str, sizeof(test_str), "%i", (int)p_task_system_dta->indice_valores);
+
+	limpiar_linea(3, 2);
+
+	displayCharPositionWrite(3, 2);
+	displayStringWrite(test_str);
 }
 
 void pantalla_menu_valores_spin(task_system_dta_t* p_task_system_dta) {
-	LOGGER_LOG("Enter / Next / Escape\n");
-	char* nombre;
+	char test_str[17];
 	switch (p_task_system_dta->indice_valores) {
-		case SPIN_LEFT: nombre = "LEFT"; break;
-		case SPIN_RIGHT: nombre = "RIGHT"; break;
+		case SPIN_LEFT: snprintf(test_str, sizeof(test_str), "%s", "LEFT"); break;
+		case SPIN_RIGHT: snprintf(test_str, sizeof(test_str), "%s", "RIGHT"); break;
 	}
-	LOGGER_LOG(" > %s\n", nombre);
+
+	limpiar_linea(3, 2);
+
+	displayCharPositionWrite(3, 2);
+	displayStringWrite(test_str);
 }
 
 /********************** end of file ******************************************/

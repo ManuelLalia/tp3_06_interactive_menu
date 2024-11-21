@@ -83,8 +83,6 @@ typedef enum task_system_st {
 typedef enum task_motores {
 	MOTOR_1,
 	MOTOR_2,
-	MOTOR_3,
-	MOTOR_4,
 
 	MAX_MOTORES,
 } task_motores_t;
